@@ -32,9 +32,9 @@ num_epoch = args.num_epoch[0]
 dataset_name = args.dataset[0]
 
 if dataset_name == "mnist":
-    dataset = mnist_data.read_data_sets("mnist_data", one_hot=True, reshape=True)
+    dataset = mnist_data.read_data_sets("mnist_data", one_hot=True, reshape=False)
 elif dataset_name == "cifar10":
-    dataset = load_cifar10(reshape=True, crop_size=28)
+    dataset = load_cifar10(reshape=False, crop_size=28)
 else:
     raise ValueError("Unknown dataset name: %s" % dataset_name)
 

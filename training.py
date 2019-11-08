@@ -89,14 +89,14 @@ def train_configuration(N, L, sigma_w, sigma_b, init_mode, dataset, num_epoch, d
     bias_initializer = tf.initializers.random_normal(stddev=sigma_b)
 
     num_classes = dataset.train.labels.shape[1]
-    input_size = dataset.train.images.shape[1]
+    size, width, height, depth = dataset.train.images.shape
 
-    input = tf.placeholder(tf.float64, [None, input_size])
+    input = tf.placeholder(tf.float64, [None, width, height, depth])
     labels = tf.placeholder(tf.float64, [None, num_classes])
 
     hidden = tf.layers.Dense(N, activation=tf.nn.relu,
                              kernel_initializer=kernel_initializer,
-                             bias_initializer=bias_initializer)(input)
+                             bias_initializer=bias_initializer)(tf.keras.layers.Flatten()(input))
     for _ in range(L):
         hidden = tf.layers.Dense(N, activation=tf.nn.relu,
                                  kernel_initializer=kernel_initializer,
@@ -113,14 +113,14 @@ def train_configuration(N, L, sigma_w, sigma_b, init_mode, dataset, num_epoch, d
     batch_cnt = dataset.train.num_examples // batch_size
     num_steps = num_epoch * batch_cnt
 
-    step = tf.placeholder(tf.int32)
+    step = tf.train.get_or_create_global_step()
 
     if dataset_name == "cifar10":
         # learning rate for CIFAR-10
         lr = (0.00001 + tf.train.exponential_decay(0.0005, step, num_steps, 1 / math.e)) / (L + 1)
     else:
         # learning rate for MNIST
-        lr = (0.0001 + tf.train.exponential_decay(0.003, step, 2 * num_epoch * batch_cnt, 1 / math.e)) / (L + 1)
+        lr = (0.0001 + tf.train.exponential_decay(0.003, step, num_steps, 1 / math.e)) / (L + 1)
 
     optimizer = tf.train.GradientDescentOptimizer(lr)
     train_step = optimizer.minimize(cross_entropy)
@@ -140,8 +140,7 @@ def train_configuration(N, L, sigma_w, sigma_b, init_mode, dataset, num_epoch, d
         test_acc_epoch = []
         for batch_num in range(batch_cnt):
             batch_features, batch_labels = dataset.train.next_batch(batch_size)
-            sess.run(train_step,
-                     feed_dict={input: batch_features, labels: batch_labels, step: epoch * batch_cnt + batch_num})
+            sess.run(train_step, feed_dict={input: batch_features, labels: batch_labels})
 
             if batch_num % 100 == 0:
                 acc = sess.run(accuracy, feed_dict={input: dataset.test.images, labels: dataset.test.labels})

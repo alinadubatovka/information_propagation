@@ -68,18 +68,7 @@ class DataSet(object):
     def _per_image_standardization(self, image):
         return self._normalize_meanstd(image, axis=(1, 2))
 
-    def _crop_image(self, image, target_height, target_width):
-        _, height, width, _ = image.shape
-        width_diff = width - target_width
-        offset_crop_width = max(width_diff // 2, 0)
-
-        height_diff = height - target_height
-        offset_crop_height = max(height_diff // 2, 0)
-
-        cropped = image[:, offset_crop_height:-offset_crop_height, offset_crop_width:-offset_crop_width, :]
-        return cropped
-
-    def next_batch(self, batch_size, shuffle=True):
+    def _next_batch(self, batch_size, shuffle=True):
         """Return the next `batch_size` examples from this data set."""
         start = self._index_in_epoch
         # Shuffle for the first epoch
@@ -115,6 +104,11 @@ class DataSet(object):
             end = self._index_in_epoch
             return self._images[start:end], self._labels[start:end]
 
+    def next_batch(self, batch_size, shuffle=True):
+        img, labels = self._next_batch(batch_size, shuffle)
+        img = self._per_image_standardization(img)
+        return img, labels
+
 
 def crop_image(image, target_height, target_width):
     _, height, width, _ = image.shape
@@ -128,24 +122,13 @@ def crop_image(image, target_height, target_width):
     return cropped
 
 
-def per_image_standardization(image):
-    return normalize_meanstd(image, axis=(1, 2))
-
-
-def normalize_meanstd(a, axis=None):
-    # axis param denotes axes along which mean & std reductions are to be performed
-    mean = np.mean(a, axis=axis, keepdims=True)
-    std = np.sqrt(((a - mean) ** 2).mean(axis=axis, keepdims=True))
-    return (a - mean) / std
-
-
 def load_cifar10(dtype=dtypes.float64, reshape=True, crop_size=32):
     (train_images, train_labels), (test_images, test_labels) = cifar10.load_data()
     train_labels = np_utils.to_categorical(train_labels, 10)
     test_labels = np_utils.to_categorical(test_labels, 10)
 
-    train_images = per_image_standardization(crop_image(train_images, crop_size, crop_size))
-    test_images = per_image_standardization(crop_image(test_images, crop_size, crop_size))
+    train_images = crop_image(train_images, crop_size, crop_size)
+    test_images = crop_image(test_images, crop_size, crop_size)
 
     options = dict(dtype=dtype, reshape=reshape)
 
